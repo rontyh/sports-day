@@ -179,34 +179,57 @@ function checkCollision(obj1, obj2) {
 function animate() {
   requestAnimationFrame(animate);
 
-  // Steering
-  bike.rotation.y -= joystickData.x * 0.05;
+// Smooth steering
+const steerStrength = 0.03;   // smaller = easier control
+bike.rotation.y -= joystickData.x * steerStrength;
+
+// Auto stabilize (bike slowly goes straight when no input)
+if (Math.abs(joystickData.x) < 0.1) {
+  bike.rotation.y *= 0.98;
+}
 
   // Acceleration
-  if (accelerating) speed += 0.02;
-  if (braking) speed -= 0.03;
+if (accelerating) speed += 0.015;
+if (braking) speed -= 0.02;
 
-  speed *= 0.97;
+// Speed limits
+speed = Math.max(Math.min(speed, 0.8), -0.3);
+
+speed *= 0.98;
 
   // Move bike
   bike.position.x -= Math.sin(bike.rotation.y) * speed;
   bike.position.z -= Math.cos(bike.rotation.y) * speed;
 
-  // Camera follow
-  camera.position.x = bike.position.x;
-  camera.position.z = bike.position.z - 12;
-  camera.lookAt(bike.position);
+// Better camera angle
+camera.position.x = bike.position.x;
+camera.position.z = bike.position.z - 15;
+camera.position.y = 8;
+
+camera.lookAt(
+  bike.position.x,
+  bike.position.y + 1,
+  bike.position.z + 5
+);
 
   // Traffic movement
-  cars.forEach(car => {
-    car.position.z += 0.5;
-    if (car.position.z > 100) car.position.z = -100;
+cars.forEach(car => {
 
-    if (checkCollision(bike, car)) {
-      alert("💥 You Crashed! Delivery Failed!");
-      location.reload();
-    }
-  });
+  // Cars move toward player (from front)
+  car.position.z -= 0.8;
+
+  // Respawn far ahead
+  if (car.position.z < bike.position.z - 50) {
+    car.position.z = bike.position.z + 150;
+    car.position.x = (Math.random() - 0.5) * 8;
+  }
+
+  // Collision check
+  if (checkCollision(bike, car)) {
+    alert("💥 You Crashed!");
+    location.reload();
+  }
+});
 
   // Off-road detection
   if (Math.abs(bike.position.x) > 10) {
