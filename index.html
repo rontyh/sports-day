@@ -1,39 +1,29 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>Grab - Urban Delivery</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+import java.util.Scanner;
+import java.util.Random;
 
-<div id="ui">
-  <div id="topBar">
-    ⭐ Rating: <span id="rating">5</span> |
-    💰 Money: <span id="money">0</span> |
-    ⏱️ Time: <span id="time">180</span>
-  </div>
+public class GuessTheNumber {
+    public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        Random random = new Random();
+        int numberToGuess = random.nextInt(100) + 1;
+        int numberOfTries = 0;
+        boolean hasGuessedCorrectly = false;
 
-  <div id="freshnessContainer">
-    Freshness
-    <div id="freshnessBar"></div>
-  </div>
+        System.out.println("Guess a number between 1 and 100:");
 
-  <button id="acceptOrder">Accept Order</button>
+        while (!hasGuessedCorrectly) {
+            int playerGuess = scanner.nextInt();
+            numberOfTries++;
 
-  <div id="joystick">
-    <div id="stick"></div>
-  </div>
-
-  <div id="buttons">
-    <button id="gas">▲</button>
-    <button id="brake">▼</button>
-  </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.158/build/three.min.js"></script>
-<script src="main.js"></script>
-
-</body>
-</html>
+            if (playerGuess < numberToGuess) {
+                System.out.println("Too low! Try again.");
+            } else if (playerGuess > numberToGuess) {
+                System.out.println("Too high! Try again.");
+            } else {
+                hasGuessedCorrectly = true;
+                System.out.println("Congratulations! You've guessed the number in " + numberOfTries + " tries.");
+            }
+        }
+        scanner.close();
+    }
+}
