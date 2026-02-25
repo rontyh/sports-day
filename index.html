@@ -1,29 +1,122 @@
-import java.util.Scanner;
+import javax.swing.*;
+import java.awt.*;
+import java.awt.event.*;
+import java.util.ArrayList;
 import java.util.Random;
 
-public class GuessTheNumber {
-    public static void main(String[] args) {
-        Scanner scanner = new Scanner(System.in);
-        Random random = new Random();
-        int numberToGuess = random.nextInt(100) + 1;
-        int numberOfTries = 0;
-        boolean hasGuessedCorrectly = false;
+public class PizzaDeliveryGame extends JPanel implements ActionListener, KeyListener {
 
-        System.out.println("Guess a number between 1 and 100:");
+    private Timer timer;
+    private int playerX = 250;
+    private int playerY = 450;
+    private int playerWidth = 50;
+    private int playerHeight = 50;
+    private int moveSpeed = 10;
 
-        while (!hasGuessedCorrectly) {
-            int playerGuess = scanner.nextInt();
-            numberOfTries++;
+    private ArrayList<Rectangle> pizzas;
+    private int pizzaWidth = 30;
+    private int pizzaHeight = 30;
+    private int pizzaSpeed = 5;
+    private int score = 0;
 
-            if (playerGuess < numberToGuess) {
-                System.out.println("Too low! Try again.");
-            } else if (playerGuess > numberToGuess) {
-                System.out.println("Too high! Try again.");
-            } else {
-                hasGuessedCorrectly = true;
-                System.out.println("Congratulations! You've guessed the number in " + numberOfTries + " tries.");
+    private boolean gameOver = false;
+
+    public PizzaDeliveryGame() {
+        setPreferredSize(new Dimension(600, 500));
+        setBackground(Color.CYAN);
+
+        pizzas = new ArrayList<>();
+        timer = new Timer(30, this);
+        timer.start();
+
+        addKeyListener(this);
+        setFocusable(true);
+        spawnPizza();
+    }
+
+    // Spawn pizza at random x position
+    private void spawnPizza() {
+        Random rand = new Random();
+        int x = rand.nextInt(600 - pizzaWidth);
+        pizzas.add(new Rectangle(x, 0, pizzaWidth, pizzaHeight));
+    }
+
+    @Override
+    public void paintComponent(Graphics g) {
+        super.paintComponent(g);
+
+        // Draw player
+        g.setColor(Color.RED);
+        g.fillRect(playerX, playerY, playerWidth, playerHeight);
+
+        // Draw pizzas
+        g.setColor(Color.ORANGE);
+        for (Rectangle pizza : pizzas) {
+            g.fillRect(pizza.x, pizza.y, pizza.width, pizza.height);
+        }
+
+        // Draw score
+        g.setColor(Color.BLACK);
+        g.setFont(new Font("Arial", Font.BOLD, 20));
+        g.drawString("Score: " + score, 10, 20);
+
+        // Game over
+        if (gameOver) {
+            g.setFont(new Font("Arial", Font.BOLD, 50));
+            g.setColor(Color.BLACK);
+            g.drawString("GAME OVER", 120, 250);
+        }
+    }
+
+    @Override
+    public void actionPerformed(ActionEvent e) {
+        if (!gameOver) {
+            // Move pizzas
+            for (int i = 0; i < pizzas.size(); i++) {
+                Rectangle pizza = pizzas.get(i);
+                pizza.y += pizzaSpeed;
+
+                // Check collision
+                if (pizza.intersects(new Rectangle(playerX, playerY, playerWidth, playerHeight))) {
+                    score++;
+                    pizzas.remove(i);
+                    i--;
+                    spawnPizza();
+                } else if (pizza.y > 500) { // Missed pizza
+                    gameOver = true;
+                    timer.stop();
+                }
             }
         }
-        scanner.close();
+        repaint();
+    }
+
+    @Override
+    public void keyPressed(KeyEvent e) {
+        if (!gameOver) {
+            int key = e.getKeyCode();
+            if (key == KeyEvent.VK_LEFT && playerX > 0) {
+                playerX -= moveSpeed;
+            }
+            if (key == KeyEvent.VK_RIGHT && playerX < getWidth() - playerWidth) {
+                playerX += moveSpeed;
+            }
+        }
+    }
+
+    @Override
+    public void keyReleased(KeyEvent e) { }
+
+    @Override
+    public void keyTyped(KeyEvent e) { }
+
+    public static void main(String[] args) {
+        JFrame frame = new JFrame("Pizza Delivery Game");
+        PizzaDeliveryGame game = new PizzaDeliveryGame();
+        frame.add(game);
+        frame.pack();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLocationRelativeTo(null);
+        frame.setVisible(true);
     }
 }
