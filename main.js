@@ -71,28 +71,48 @@ document.getElementById("brake").ontouchstart = () => braking = true;
 document.getElementById("brake").ontouchend = () => braking = false;
 
 // --------------------
-// JOYSTICK
+// JOYSTICK SYSTEM (FIXED)
 // --------------------
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
-let joystickActive = false;
 
-joystick.addEventListener("touchstart", () => joystickActive = true);
+let joystickActive = false;
+let joystickData = { x: 0, y: 0 };
+
+joystick.addEventListener("touchstart", (e) => {
+  joystickActive = true;
+});
 
 joystick.addEventListener("touchend", () => {
   joystickActive = false;
-  direction = 0;
+  joystickData.x = 0;
+  joystickData.y = 0;
   stick.style.left = "30px";
+  stick.style.top = "30px";
 });
 
 joystick.addEventListener("touchmove", (e) => {
   if (!joystickActive) return;
 
-  let touch = e.touches[0];
-  let rect = joystick.getBoundingClientRect();
-  let x = touch.clientX - rect.left - 50;
+  const rect = joystick.getBoundingClientRect();
+  const touch = e.touches[0];
 
-  direction = x * 0.003;
+  let x = touch.clientX - rect.left - 50;
+  let y = touch.clientY - rect.top - 50;
+
+  const maxDistance = 30;
+  const distance = Math.sqrt(x * x + y * y);
+
+  if (distance > maxDistance) {
+    x = (x / distance) * maxDistance;
+    y = (y / distance) * maxDistance;
+  }
+
+  stick.style.left = 30 + x + "px";
+  stick.style.top = 30 + y + "px";
+
+  joystickData.x = x / maxDistance;
+  joystickData.y = y / maxDistance;
 });
 
 // --------------------
