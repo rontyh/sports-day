@@ -1,6 +1,6 @@
-// --------------------
+// ===============================
 // SCENE SETUP
-// --------------------
+// ===============================
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 
@@ -15,73 +15,101 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-// --------------------
+// ===============================
 // LIGHTING
-// --------------------
-const light = new THREE.DirectionalLight(0xffffff, 1);
-light.position.set(10, 20, 10);
-scene.add(light);
+// ===============================
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
 
 scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-// --------------------
-// GROUND
-// --------------------
-const ground = new THREE.Mesh(
-  new THREE.PlaneGeometry(100, 100),
-  new THREE.MeshStandardMaterial({ color: 0x228B22 })
+// ===============================
+// ROAD SYSTEM
+// ===============================
+const road = new THREE.Mesh(
+  new THREE.PlaneGeometry(20, 200),
+  new THREE.MeshStandardMaterial({ color: 0x333333 })
 );
-ground.rotation.x = -Math.PI / 2;
-scene.add(ground);
+road.rotation.x = -Math.PI / 2;
+scene.add(road);
 
-// --------------------
-// PLAYER
-// --------------------
-const player = new THREE.Mesh(
-  new THREE.BoxGeometry(1, 1, 2),
+// Lane markings
+for (let i = -90; i < 100; i += 15) {
+  const line = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.1, 6),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  line.position.set(0, 0.05, i);
+  scene.add(line);
+}
+
+// ===============================
+// BIKE MODEL (Grouped)
+// ===============================
+const bike = new THREE.Group();
+
+// Body
+const body = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 0.5, 2),
   new THREE.MeshStandardMaterial({ color: 0xff0000 })
 );
-player.position.y = 0.5;
-scene.add(player);
+body.position.y = 0.75;
+bike.add(body);
 
-camera.position.set(0, 6, -10);
-camera.lookAt(player.position);
+// Wheels
+const wheelGeometry = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
+const wheelMaterial = new THREE.MeshStandardMaterial({ color: 0x000000 });
 
-// --------------------
+const frontWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+frontWheel.rotation.z = Math.PI / 2;
+frontWheel.position.set(0, 0.4, 1);
+bike.add(frontWheel);
+
+const backWheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+backWheel.rotation.z = Math.PI / 2;
+backWheel.position.set(0, 0.4, -1);
+bike.add(backWheel);
+
+bike.position.y = 0;
+scene.add(bike);
+
+// ===============================
+// CAMERA
+// ===============================
+camera.position.set(0, 6, -12);
+camera.lookAt(bike.position);
+
+// ===============================
 // GAME VARIABLES
-// --------------------
+// ===============================
 let speed = 0;
-let direction = 0;
 let accelerating = false;
 let braking = false;
 
-let freshness = 100;
-let hasOrder = false;
-let money = 0;
-let rating = 5;
-let timeLeft = 180;
+let joystickData = { x: 0, y: 0 };
 
-// --------------------
-// TOUCH CONTROLS
-// --------------------
-document.getElementById("gas").ontouchstart = () => accelerating = true;
-document.getElementById("gas").ontouchend = () => accelerating = false;
+// ===============================
+// TOUCH BUTTONS
+// ===============================
+const gasBtn = document.getElementById("gas");
+const brakeBtn = document.getElementById("brake");
 
-document.getElementById("brake").ontouchstart = () => braking = true;
-document.getElementById("brake").ontouchend = () => braking = false;
+gasBtn.addEventListener("touchstart", () => accelerating = true);
+gasBtn.addEventListener("touchend", () => accelerating = false);
 
-// --------------------
-// JOYSTICK SYSTEM (FIXED)
-// --------------------
+brakeBtn.addEventListener("touchstart", () => braking = true);
+brakeBtn.addEventListener("touchend", () => braking = false);
+
+// ===============================
+// JOYSTICK SYSTEM
+// ===============================
 const joystick = document.getElementById("joystick");
 const stick = document.getElementById("stick");
 
 let joystickActive = false;
-let joystickData = { x: 0, y: 0 };
 
-joystick.addEventListener("touchstart", (e) => {
-  joystickActive = true;
-});
+joystick.addEventListener("touchstart", () => joystickActive = true);
 
 joystick.addEventListener("touchend", () => {
   joystickActive = false;
@@ -115,74 +143,76 @@ joystick.addEventListener("touchmove", (e) => {
   joystickData.y = y / maxDistance;
 });
 
-// --------------------
-// ACCEPT ORDER
-// --------------------
-document.getElementById("acceptOrder").onclick = () => {
-  hasOrder = true;
-  freshness = 100;
-};
-
-// --------------------
-// TRAFFIC
-// --------------------
+// ===============================
+// TRAFFIC SYSTEM
+// ===============================
 const cars = [];
 
-for (let i = 0; i < 3; i++) {
-  let car = new THREE.Mesh(
-    new THREE.BoxGeometry(1, 1, 2),
+for (let i = 0; i < 4; i++) {
+  const car = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 1, 3),
     new THREE.MeshStandardMaterial({ color: 0x0000ff })
   );
-  car.position.set(Math.random() * 20 - 10, 0.5, Math.random() * 20 - 10);
+
+  car.position.set(
+    (Math.random() - 0.5) * 10,
+    0.5,
+    Math.random() * 150 - 75
+  );
+
   scene.add(car);
   cars.push(car);
 }
 
-// --------------------
-// TIMER
-// --------------------
-setInterval(() => {
-  timeLeft--;
-  document.getElementById("time").innerText = timeLeft;
+// ===============================
+// COLLISION DETECTION
+// ===============================
+function checkCollision(obj1, obj2) {
+  const box1 = new THREE.Box3().setFromObject(obj1);
+  const box2 = new THREE.Box3().setFromObject(obj2);
+  return box1.intersectsBox(box2);
+}
 
-  if (timeLeft <= 0) {
-    alert("Shift Ended!");
-    location.reload();
-  }
-}, 1000);
-
-// --------------------
+// ===============================
 // GAME LOOP
-// --------------------
+// ===============================
 function animate() {
   requestAnimationFrame(animate);
 
-  if (accelerating) speed += 0.01;
-  if (braking) speed -= 0.02;
+  // Steering
+  bike.rotation.y -= joystickData.x * 0.05;
 
-  speed *= 0.98;
+  // Acceleration
+  if (accelerating) speed += 0.02;
+  if (braking) speed -= 0.03;
 
-  player.rotation.y -= direction;
-  player.position.x -= Math.sin(player.rotation.y) * speed;
-  player.position.z -= Math.cos(player.rotation.y) * speed;
+  speed *= 0.97;
+
+  // Move bike
+  bike.position.x -= Math.sin(bike.rotation.y) * speed;
+  bike.position.z -= Math.cos(bike.rotation.y) * speed;
 
   // Camera follow
-  camera.position.x = player.position.x;
-  camera.position.z = player.position.z - 10;
-  camera.lookAt(player.position);
-
-  // Freshness decrease
-  if (hasOrder) {
-    freshness -= 0.05;
-    if (freshness < 0) freshness = 0;
-    document.getElementById("freshnessBar").style.width = freshness * 2 + "px";
-  }
+  camera.position.x = bike.position.x;
+  camera.position.z = bike.position.z - 12;
+  camera.lookAt(bike.position);
 
   // Traffic movement
   cars.forEach(car => {
-    car.position.x += 0.05;
-    if (car.position.x > 20) car.position.x = -20;
+    car.position.z += 0.5;
+    if (car.position.z > 100) car.position.z = -100;
+
+    if (checkCollision(bike, car)) {
+      alert("💥 You Crashed! Delivery Failed!");
+      location.reload();
+    }
   });
+
+  // Off-road detection
+  if (Math.abs(bike.position.x) > 10) {
+    alert("🚫 You went off the road!");
+    location.reload();
+  }
 
   renderer.render(scene, camera);
 }
